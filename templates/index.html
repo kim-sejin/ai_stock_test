@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>주식 알림 에이전트</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@300;400;600&display=swap');
+
+    :root {
+      --bg:       #0d0d0d;
+      --surface:  #161616;
+      --border:   #2a2a2a;
+      --text:     #e8e8e8;
+      --muted:    #666;
+      --up:       #00c896;
+      --down:     #ff4d6a;
+      --neutral:  #888;
+      --accent:   #f0e040;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans KR', sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+      padding: 40px 24px;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 40px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+    }
+
+    header h1 {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      color: var(--accent);
+    }
+
+    header span {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 24px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 720px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 24px;
+    }
+
+    .panel-title {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    /* 종목 카드 */
+    .stock-list { display: flex; flex-direction: column; gap: 2px; }
+
+    .stock-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-radius: 3px;
+      transition: background 0.15s;
+      cursor: default;
+    }
+
+    .stock-row:hover { background: #1e1e1e; }
+
+    .stock-row.alert-up   { border-left: 3px solid var(--up); }
+    .stock-row.alert-down { border-left: 3px solid var(--down); }
+    .stock-row:not(.alert-up):not(.alert-down) { border-left: 3px solid transparent; }
+
+    .stock-info { display: flex; flex-direction: column; gap: 3px; }
+
+    .stock-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .stock-ticker {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .stock-right { display: flex; align-items: center; gap: 20px; }
+
+    .stock-price {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: right;
+    }
+
+    .stock-change {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      width: 72px;
+      text-align: right;
+    }
+
+    .up   { color: var(--up); }
+    .down { color: var(--down); }
+    .neutral { color: var(--neutral); }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px 6px;
+      border-radius: 3px;
+      line-height: 1;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .remove-btn:hover { color: var(--down); background: #2a1a1e; }
+
+    .empty-state {
+      color: var(--muted);
+      font-size: 13px;
+      padding: 24px 0;
+      text-align: center;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .stock-error {
+      color: var(--muted);
+      font-size: 12px;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    /* 사이드바 */
+    .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+    /* 종목 추가 */
+    .input-row { display: flex; gap: 8px; }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text);
+      font-family: 'IBM Plex Sans KR', sans-serif;
+      font-size: 13px;
+      padding: 9px 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="text"]:focus { border-color: var(--accent); }
+    input[type="text"]::placeholder { color: var(--muted); }
+
+    .btn {
+      background: var(--accent);
+      border: none;
+      border-radius: 3px;
+      color: #000;
+      cursor: pointer;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 9px 14px;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+    }
+
+    .btn-secondary:hover { border-color: var(--text); background: none; opacity: 1; }
+
+    /* 검색 결과 드롭다운 */
+    .matches {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+
+    .match-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: background 0.1s;
+      font-size: 13px;
+    }
+
+    .match-item:hover { background: #1e1e1e; }
+
+    .match-code {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* 알림 설정 */
+    .setting-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .setting-row:last-child { margin-bottom: 0; }
+
+    .setting-label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .setting-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    input[type="number"] {
+      width: 80px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      padding: 7px 10px;
+      outline: none;
+    }
+
+    input[type="number"]:focus { border-color: var(--accent); }
+
+    .setting-unit {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    /* 토글 */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .toggle {
+      position: relative;
+      width: 40px;
+      height: 22px;
+    }
+
+    .toggle input { opacity: 0; width: 0; height: 0; }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 22px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 3px;
+      top: 3px;
+      background: var(--muted);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    .toggle input:checked + .toggle-slider { background: #1a3a2e; }
+    .toggle input:checked + .toggle-slider::before {
+      transform: translateX(18px);
+      background: var(--up);
+    }
+
+    /* 피드백 메시지 */
+    .feedback {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      margin-top: 8px;
+      min-height: 16px;
+    }
+
+    .feedback.ok   { color: var(--up); }
+    .feedback.err  { color: var(--down); }
+    .feedback.info { color: var(--accent); }
+
+    /* 조회 버튼 + 타임스탬프 */
+    .refresh-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .last-updated {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📈 주식 알림 에이전트</h1>
+  <span>KOSPI / KOSDAQ tracker</span>
+</header>
+
+<div class="grid">
+
+  <!-- 왼쪽: 감시 목록 -->
+  <div class="panel">
+    <div class="refresh-row">
+      <div class="panel-title">감시 목록</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="last-updated" id="last-updated">—</span>
+        <button class="btn btn-secondary" onclick="loadStocks()">새로고침</button>
+      </div>
+    </div>
+    <div class="stock-list" id="stock-list">
+      <div class="empty-state">로딩 중...</div>
+    </div>
+  </div>
+
+  <!-- 오른쪽: 사이드바 -->
+  <div class="sidebar">
+
+    <!-- 종목 추가 -->
+    <div class="panel">
+      <div class="panel-title">종목 추가</div>
+      <div class="input-row">
+        <input type="text" id="stock-input" placeholder="예: 카카오, 현대차" onkeydown="if(event.key==='Enter') addStock()" />
+        <button class="btn" onclick="addStock()">추가</button>
+      </div>
+      <div id="matches"></div>
+      <div class="feedback" id="add-feedback"></div>
+    </div>
+
+    <!-- 알림 설정 -->
+    <div class="panel">
+      <div class="panel-title">알림 설정</div>
+
+      <div class="toggle-row">
+        <span class="setting-label">자동 이메일 알림</span>
+        <label class="toggle">
+          <input type="checkbox" id="auto-alert" onchange="saveSettings()" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">등락률 기준</div>
+        <div class="setting-input-row">
+          <input type="number" id="threshold" min="0.1" max="30" step="0.5" onchange="saveSettings()" />
+          <span class="setting-unit">% 이상 변동 시</span>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-label">자동 체크 간격</div>
+        <div class="setting-input-row">
+          <input type="number" id="interval" min="1" max="1440" step="1" onchange="saveSettings()" />
+          <span class="setting-unit">분마다</span>
+        </div>
+      </div>
+
+      <div class="feedback" id="settings-feedback"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ── 주식 목록 로드 ──────────────────────────
+  async function loadStocks() {
+    const list = document.getElementById('stock-list');
+    list.innerHTML = '<div class="empty-state"><span class="spinner"></span>조회 중...</div>';
+
+    try {
+      const res  = await fetch('/api/stocks');
+      const data = await res.json();
+
+      document.getElementById('last-updated').textContent =
+        '업데이트 ' + new Date().toLocaleTimeString('ko-KR');
+
+      if (!data.length) {
+        list.innerHTML = '<div class="empty-state">감시 종목이 없습니다.</div>';
+        return;
+      }
+
+      list.innerHTML = data.map(s => {
+        if (s.error) return `
+          <div class="stock-row">
+            <div class="stock-info">
+              <div class="stock-name">${s.name}</div>
+              <div class="stock-ticker">${s.ticker}</div>
+            </div>
+            <span class="stock-error">${s.error}</span>
+            <button class="remove-btn" onclick="removeStock('${s.ticker}')">✕</button>
+          </div>`;
+
+        const dir   = s.change_pct > 0 ? 'up' : s.change_pct < 0 ? 'down' : 'neutral';
+        const arrow = s.change_pct > 0 ? '▲' : s.change_pct < 0 ? '▼' : '─';
+        const alertClass = s.alert ? (s.change_pct > 0 ? 'alert-up' : 'alert-down') : '';
+
+        return `
+          <div class="stock-row ${alertClass}">
+            <div class="stock-info">
+              <div class="stock-name">${s.name}</div>
+              <div class="stock-ticker">${s.ticker}</div>
+            </div>
+            <div class="stock-right">
+              <div>
+                <div class="stock-price">${s.price.toLocaleString()}원</div>
+              </div>
+              <div class="stock-change ${dir}">${arrow} ${Math.abs(s.change_pct).toFixed(2)}%</div>
+              <button class="remove-btn" onclick="removeStock('${s.ticker}')">✕</button>
+            </div>
+          </div>`;
+      }).join('');
+    } catch (e) {
+      list.innerHTML = '<div class="empty-state">서버 연결 실패</div>';
+    }
+  }
+
+  // ── 종목 추가 ──────────────────────────────
+  async function addStock() {
+    const input    = document.getElementById('stock-input');
+    const feedback = document.getElementById('add-feedback');
+    const matches  = document.getElementById('matches');
+    const name     = input.value.trim();
+    if (!name) return;
+
+    feedback.className = 'feedback info';
+    feedback.textContent = '검색 중...';
+    matches.innerHTML = '';
+
+    const res  = await fetch('/api/stocks/add', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name})
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      feedback.className = 'feedback ok';
+      feedback.textContent = `✓ '${data.name}' 추가됨`;
+      input.value = '';
+      loadStocks();
+    } else if (data.matches) {
+      feedback.className = 'feedback info';
+      feedback.textContent = '아래에서 종목을 선택하세요:';
+      matches.innerHTML = '<div class="matches">' +
+        data.matches.map(m => `
+          <div class="match-item" onclick="selectMatch('${m.Name}')">
+            <span>${m.Name}</span>
+            <span class="match-code">${m.Code}</span>
+          </div>`).join('') +
+        '</div>';
+    } else {
+      feedback.className = 'feedback err';
+      feedback.textContent = data.error || '오류가 발생했습니다.';
+    }
+  }
+
+  function selectMatch(name) {
+    document.getElementById('stock-input').value = name;
+    document.getElementById('matches').innerHTML = '';
+    document.getElementById('add-feedback').textContent = '';
+    addStock();
+  }
+
+  // ── 종목 제거 ──────────────────────────────
+  async function removeStock(ticker) {
+    await fetch('/api/stocks/remove', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ticker})
+    });
+    loadStocks();
+  }
+
+  // ── 설정 로드 ──────────────────────────────
+  async function loadSettings() {
+    const res  = await fetch('/api/settings');
+    const data = await res.json();
+    document.getElementById('auto-alert').checked = data.auto_alert;
+    document.getElementById('threshold').value    = data.alert_threshold;
+    document.getElementById('interval').value     = data.interval_minutes;
+  }
+
+  // ── 설정 저장 ──────────────────────────────
+  async function saveSettings() {
+    const feedback = document.getElementById('settings-feedback');
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        auto_alert:        document.getElementById('auto-alert').checked,
+        alert_threshold:   parseFloat(document.getElementById('threshold').value),
+        interval_minutes:  parseInt(document.getElementById('interval').value),
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      feedback.className = 'feedback ok';
+      feedback.textContent = '✓ 저장됨';
+      setTimeout(() => feedback.textContent = '', 2000);
+    }
+  }
+
+  // ── 초기화 ──────────────────────────────────
+  loadStocks();
+  loadSettings();
+</script>
+
+</body>
+</html>
