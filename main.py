@@ -3,6 +3,7 @@ import certifi
 ssl._create_default_https_context = ssl.create_default_context(cafile=certifi.where())
 
 import os
+import json
 import smtplib
 import pandas as pd
 import FinanceDataReader as fdr
@@ -28,6 +29,13 @@ EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 EMAIL_RECEIVER = os.getenv("EMAIL_RECEIVER")
 
 # ─────────────────────────────────────────
+# 종목 DB 로드 (stocks_db.json)
+# ─────────────────────────────────────────
+_db_path = Path(__file__).parent / "stocks_db.json"
+with open(_db_path, encoding="utf-8") as f:
+    STOCKS_DB = json.load(f)  # {"삼성전자": "005930", ...}
+
+# ─────────────────────────────────────────
 # 상태 (메모리)
 # ─────────────────────────────────────────
 WATCHLIST = {
@@ -40,8 +48,6 @@ SETTINGS = {
     "alert_threshold": 3.0,
     "auto_alert": True,
 }
-
-_stock_list = None
 
 
 # ─────────────────────────────────────────
@@ -64,25 +70,24 @@ def send_email(subject: str, message: str):
 
 
 # ─────────────────────────────────────────
-# 종목명 → 코드 변환
+# 종목명 → 코드 변환 (로컬 DB 사용)
 # ─────────────────────────────────────────
 def get_ticker_by_name(name: str) -> dict:
-    global _stock_list
-    if _stock_list is None:
-        kospi  = fdr.StockListing('KOSPI')[['Code', 'Name']]
-        kosdaq = fdr.StockListing('KOSDAQ')[['Code', 'Name']]
-        _stock_list = pd.concat([kospi, kosdaq], ignore_index=True)
+    # 정확히 일치
+    if name in STOCKS_DB:
+        return {"code": STOCKS_DB[name], "name": name}
 
-    exact = _stock_list[_stock_list['Name'] == name]
-    if not exact.empty:
-        return {"code": exact.iloc[0]['Code'], "name": exact.iloc[0]['Name']}
+    # 부분 일치
+    matches = [
+        {"Name": k, "Code": v}
+        for k, v in STOCKS_DB.items()
+        if name in k
+    ]
 
-    partial = _stock_list[_stock_list['Name'].str.contains(name, na=False)]
-    if not partial.empty:
-        matches = partial[['Code', 'Name']].head(5).to_dict('records')
-        return {"matches": matches}
+    if matches:
+        return {"matches": matches[:5]}
 
-    return {"error": f"'{name}'에 해당하는 종목을 찾을 수 없습니다."}
+    return {"error": f"'{name}'에 해당하는 종목을 찾을 수 없습니다.\n(현재 약 100개 주요 종목 지원)"}
 
 
 # ─────────────────────────────────────────
