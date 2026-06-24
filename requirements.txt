@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+jinja2
+python-multipart
+anthropic
+python-dotenv
+finance-datareader
+pandas
+schedule
+certifi
