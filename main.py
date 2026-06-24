@@ -32,6 +32,8 @@ EMAIL_RECEIVER = os.getenv("EMAIL_RECEIVER")
 # 종목 DB 로드 (stocks_db.json)
 # ─────────────────────────────────────────
 _db_path = Path(__file__).parent / "stocks_db.json"
+if not _db_path.exists():
+    _db_path = Path("/var/task/stocks_db.json")
 with open(_db_path, encoding="utf-8") as f:
     STOCKS_DB = json.load(f)  # {"삼성전자": "005930", ...}
 
